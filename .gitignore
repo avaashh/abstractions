@@ -1,0 +1,8 @@
+server/detected_images/**/*.png
+server/detected_images/**/*.jpg
+server/detected_images/**/*.jpeg
+server/detected_images/**/*.webp
+server/detected_images/**/*.avif
+
+**/venv/**/*
+.DS_Store
