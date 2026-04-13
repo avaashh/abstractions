@@ -1,4 +1,22 @@
+.image-detector-wrapper {
+  display: inline-block;
+  position: relative;
+  border: 2px solid #0066ff;
+  padding: 4px;
+  margin: 4px;
+  background: #f8f9fa;
+}
+
 .image-detector-active {
-  outline: 2px solid #0066ff !important;
-  outline-offset: 2px;
+  display: block;
+  max-width: 100%;
+}
+
+.image-detector-caption {
+  padding: 8px;
+  font-size: 14px;
+  color: #333;
+  text-align: center;
+  background: #f8f9fa;
+  border-top: 1px solid #e0e0e0;
 }
