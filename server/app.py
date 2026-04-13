@@ -19,7 +19,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-SAVE_DIR = "detected_images"
+SAVE_DIR = "server/detected_images"
 os.makedirs(SAVE_DIR, exist_ok=True)
 
 executor = ThreadPoolExecutor(max_workers=20)
@@ -46,9 +46,19 @@ async def fetch_and_save(session: aiohttp.ClientSession, url: str) -> dict:
             async with aiofiles.open(filepath, "wb") as f:
                 await f.write(content)
 
-            return {"url": url, "status": "saved", "file": filename}
+            return {
+                "url": url,
+                "status": "saved",
+                "file": filename,
+                "caption": "Lorem ipsum dolor sit amet, consectetur adipiscing elit."
+            }
     except Exception as e:
-        return {"url": url, "status": "failed", "reason": str(e)}
+        return {
+            "url": url,
+            "status": "failed",
+            "reason": str(e),
+            "caption": "Lorem ipsum dolor sit amet."
+        }
 
 
 @app.post("/detect")
