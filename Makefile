@@ -3,6 +3,9 @@
 server: server/venv
 	@server/venv/bin/python3 server/app.py
 
+start:
+	@server/venv/bin/python3 server/app.py
+
 server/venv/.complete: server/requirements.txt
 	@./setup.sh
 	@touch $@
