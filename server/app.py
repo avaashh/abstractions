@@ -38,13 +38,21 @@ os.makedirs(SAVE_DIR, exist_ok=True)
 
 OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
 OPENROUTER_MODEL = os.environ.get("OPENROUTER_MODEL", "google/gemini-2.0-flash-exp:free")
+OPENROUTER_CONCURRENCY = int(os.environ.get("OPENROUTER_CONCURRENCY", "2"))
 
 client = AsyncOpenAI(
     base_url="https://openrouter.ai/api/v1",
     api_key=OPENROUTER_API_KEY,
 )
 
-log.info("model=%s api_key=%s", OPENROUTER_MODEL, "set" if OPENROUTER_API_KEY else "MISSING")
+openrouter_sem = asyncio.Semaphore(OPENROUTER_CONCURRENCY)
+
+log.info(
+    "model=%s api_key=%s concurrency=%d",
+    OPENROUTER_MODEL,
+    "set" if OPENROUTER_API_KEY else "MISSING",
+    OPENROUTER_CONCURRENCY,
+)
 
 EXT_BY_MIME = {
     "image/jpeg": "jpg",
@@ -98,20 +106,21 @@ async def analyze_image(content: bytes, mime: str, url: str) -> dict:
     start = time.monotonic()
     log.info("analyze start url=%s bytes=%d mime=%s", url, len(content), mime)
     try:
-        completion = await client.chat.completions.create(
-            model=OPENROUTER_MODEL,
-            messages=[
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": PROMPT},
-                        {"type": "image_url", "image_url": {"url": data_url}},
-                    ],
-                }
-            ],
-            response_format={"type": "json_object"},
-            max_tokens=600,
-        )
+        async with openrouter_sem:
+            completion = await client.chat.completions.create(
+                model=OPENROUTER_MODEL,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": PROMPT},
+                            {"type": "image_url", "image_url": {"url": data_url}},
+                        ],
+                    }
+                ],
+                response_format={"type": "json_object"},
+                max_tokens=600,
+            )
         raw = completion.choices[0].message.content or "{}"
         parsed = json.loads(raw)
         elapsed = time.monotonic() - start
