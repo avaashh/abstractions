@@ -64,12 +64,18 @@ EXT_BY_MIME = {
 }
 
 PROMPT = (
-    "You are analyzing an image. Decide if it is a meme "
-    "(humorous image, often with overlaid text, reaction image, or "
-    "internet culture reference). Respond with ONLY a JSON object matching "
-    'this exact shape: {"is_meme": boolean, "confidence": number between 0 and 1, '
-    '"description": string}. The description should be a detailed, vivid description '
-    "of the image contents — if it is a meme, explain the joke and any text overlay; "
+    "You are analyzing an image. Classify `is_meme` as TRUE if the image is any of: "
+    "a classic internet meme (image macro, reaction image, template-based joke), "
+    "a comic or webcomic (single-panel or multi-panel, including xkcd-style, "
+    "newspaper comics, comic strips), or any other humorous internet content "
+    "(screenshots of funny posts/tweets, satirical illustrations, cartoons, "
+    "joke infographics, humorous edits). Only classify as FALSE if NONE of these "
+    "apply — i.e. the image is purely informational, decorative, a product photo, "
+    "a stock photo, a UI screenshot with no humorous intent, etc. "
+    "Respond with ONLY a JSON object matching this exact shape: "
+    '{"is_meme": boolean, "confidence": number between 0 and 1, "description": string}. '
+    "The description should be a detailed, vivid description of the image contents — "
+    "if it is humorous, explain the joke and transcribe any text overlay or dialogue; "
     "if not, describe what is shown. No prose outside the JSON."
 )
 
