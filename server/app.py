@@ -2,7 +2,9 @@ import asyncio
 import base64
 import hashlib
 import json
+import logging
 import os
+import time
 
 import aiofiles
 import aiohttp
@@ -14,6 +16,13 @@ from openai import AsyncOpenAI
 from pydantic import BaseModel
 
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(message)s",
+    datefmt="%H:%M:%S",
+)
+log = logging.getLogger("humor-vision")
 
 app = FastAPI()
 
@@ -34,6 +43,8 @@ client = AsyncOpenAI(
     base_url="https://openrouter.ai/api/v1",
     api_key=OPENROUTER_API_KEY,
 )
+
+log.info("model=%s api_key=%s", OPENROUTER_MODEL, "set" if OPENROUTER_API_KEY else "MISSING")
 
 EXT_BY_MIME = {
     "image/jpeg": "jpg",
@@ -74,6 +85,7 @@ def guess_ext(url: str, content_type: str | None) -> str:
 
 async def analyze_image(content: bytes, mime: str, url: str) -> dict:
     if not OPENROUTER_API_KEY:
+        log.warning("skipping analysis, no api key url=%s", url)
         return {
             "is_meme": False,
             "confidence": 0.0,
@@ -83,6 +95,8 @@ async def analyze_image(content: bytes, mime: str, url: str) -> dict:
     b64 = base64.b64encode(content).decode("ascii")
     data_url = f"data:{mime};base64,{b64}"
 
+    start = time.monotonic()
+    log.info("analyze start url=%s bytes=%d mime=%s", url, len(content), mime)
     try:
         completion = await client.chat.completions.create(
             model=OPENROUTER_MODEL,
@@ -100,18 +114,26 @@ async def analyze_image(content: bytes, mime: str, url: str) -> dict:
         )
         raw = completion.choices[0].message.content or "{}"
         parsed = json.loads(raw)
-        return {
+        elapsed = time.monotonic() - start
+        result = {
             "is_meme": bool(parsed.get("is_meme", False)),
             "confidence": float(parsed.get("confidence", 0.0)),
             "description": str(parsed.get("description", "")),
         }
+        log.info(
+            "analyze ok url=%s meme=%s conf=%.2f t=%.2fs",
+            url, result["is_meme"], result["confidence"], elapsed,
+        )
+        return result
     except json.JSONDecodeError:
+        log.warning("analyze bad-json url=%s raw=%r", url, (raw or "")[:200])
         return {
             "is_meme": False,
             "confidence": 0.0,
             "description": (raw or "")[:500],
         }
     except Exception as e:
+        log.exception("analyze failed url=%s err=%s", url, e)
         return {
             "is_meme": False,
             "confidence": 0.0,
@@ -124,11 +146,13 @@ async def fetch_and_analyze(session: aiohttp.ClientSession, url: str) -> dict:
 
     if url_hash in analysis_cache:
         cached = analysis_cache[url_hash]
+        log.info("cache hit url=%s", url)
         return {"url": url, "status": "cached", **cached}
 
     try:
         async with session.get(url, timeout=aiohttp.ClientTimeout(total=10)) as resp:
             if resp.status != 200:
+                log.warning("fetch failed url=%s http=%d", url, resp.status)
                 return {
                     "url": url,
                     "status": "failed",
@@ -146,6 +170,7 @@ async def fetch_and_analyze(session: aiohttp.ClientSession, url: str) -> dict:
         filepath = os.path.join(SAVE_DIR, filename)
         async with aiofiles.open(filepath, "wb") as f:
             await f.write(content)
+        log.info("fetched url=%s bytes=%d saved=%s", url, len(content), filename)
 
         if mime not in EXT_BY_MIME:
             mime = "image/jpeg"
@@ -156,6 +181,7 @@ async def fetch_and_analyze(session: aiohttp.ClientSession, url: str) -> dict:
 
         return {"url": url, "status": "saved", **record}
     except Exception as e:
+        log.exception("fetch_and_analyze error url=%s err=%s", url, e)
         return {
             "url": url,
             "status": "failed",
@@ -171,12 +197,19 @@ async def detect_images(batch: ImageBatch):
     if not batch.urls:
         raise HTTPException(400, "no urls provided")
 
+    start = time.monotonic()
+    log.info("/detect received n=%d", len(batch.urls))
     async with aiohttp.ClientSession() as session:
         tasks = [fetch_and_analyze(session, url) for url in batch.urls]
         results = await asyncio.gather(*tasks)
 
     saved = sum(1 for r in results if r["status"] in ("saved", "cached"))
     memes = sum(1 for r in results if r.get("is_meme"))
+    elapsed = time.monotonic() - start
+    log.info(
+        "/detect done n=%d saved=%d memes=%d t=%.2fs",
+        len(batch.urls), saved, memes, elapsed,
+    )
     return {
         "total": len(batch.urls),
         "saved": saved,
