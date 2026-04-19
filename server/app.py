@@ -105,6 +105,7 @@ async def analyze_image(content: bytes, mime: str, url: str) -> dict:
 
     start = time.monotonic()
     log.info("analyze start url=%s bytes=%d mime=%s", url, len(content), mime)
+    raw = ""
     try:
         async with openrouter_sem:
             completion = await client.chat.completions.create(
@@ -135,11 +136,11 @@ async def analyze_image(content: bytes, mime: str, url: str) -> dict:
         )
         return result
     except json.JSONDecodeError:
-        log.warning("analyze bad-json url=%s raw=%r", url, (raw or "")[:200])
+        log.warning("analyze bad-json url=%s raw=%r", url, raw[:200])
         return {
             "is_meme": False,
             "confidence": 0.0,
-            "description": (raw or "")[:500],
+            "description": raw[:500],
         }
     except Exception as e:
         log.exception("analyze failed url=%s err=%s", url, e)
