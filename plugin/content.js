@@ -1,5 +1,8 @@
 let isActive = false;
 
+const MIN_WIDTH = 200;
+const MIN_HEIGHT = 200;
+
 async function activate() {
   if (isActive) return;
   isActive = true;
@@ -9,7 +12,7 @@ async function activate() {
   const captionEls = [];
 
   images.forEach((img) => {
-    if (img.offsetWidth < 20 || img.offsetHeight < 20) return;
+    if (img.offsetWidth < MIN_WIDTH || img.offsetHeight < MIN_HEIGHT) return;
     if (window.getComputedStyle(img).display === 'none') return;
     if (!img.src) return;
     if (img.closest('.image-detector-wrapper')) return;
