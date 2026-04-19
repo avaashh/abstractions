@@ -43,8 +43,31 @@ async function activate() {
       const data = await response.json();
 
       data.results.forEach((result, i) => {
-        if (captionEls[i] && result.caption) {
-          captionEls[i].textContent = result.caption;
+        const el = captionEls[i];
+        if (!el) return;
+
+        const description = result.description || 'No description available.';
+        const isMeme = !!result.is_meme;
+        const confidence = typeof result.confidence === 'number'
+          ? ` (${Math.round(result.confidence * 100)}%)`
+          : '';
+
+        const label = document.createElement('div');
+        label.className = 'image-detector-label';
+        label.textContent = isMeme ? `MEME${confidence}` : `NOT A MEME${confidence}`;
+
+        const body = document.createElement('div');
+        body.className = 'image-detector-body';
+        body.textContent = description;
+
+        el.textContent = '';
+        el.appendChild(label);
+        el.appendChild(body);
+
+        const wrapper = el.parentNode;
+        if (wrapper) {
+          wrapper.classList.toggle('image-detector-meme', isMeme);
+          wrapper.classList.toggle('image-detector-not-meme', !isMeme);
         }
       });
     } catch (e) {
