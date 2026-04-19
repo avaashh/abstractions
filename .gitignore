@@ -6,3 +6,6 @@ server/detected_images/**/*.avif
 
 **/venv/**/*
 .DS_Store
+.env
+**/.env
+__pycache__
