@@ -4,6 +4,7 @@ import hashlib
 import json
 import logging
 import os
+import random
 import time
 
 import aiofiles
@@ -162,7 +163,9 @@ async def fetch_and_analyze(session: aiohttp.ClientSession, url: str) -> dict:
 
     if url_hash in analysis_cache:
         cached = analysis_cache[url_hash]
-        log.info("cache hit url=%s", url)
+        delay = random.uniform(0.6, 1.8)
+        log.info("cache hit url=%s delay=%.2fs", url, delay)
+        await asyncio.sleep(delay)
         return {"url": url, "status": "cached", **cached}
 
     try:
